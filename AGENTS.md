@@ -56,13 +56,11 @@ Do not optimize for covering everything.
 
 ## Daily Planning Rules
 
-- Maximum 5 tasks per day.
-- Maximum 2 P0 tasks.
-- Always identify the Minimum Viable Day.
-- Give tasks a clear expected outcome.
-- Prefer tasks that can realistically be completed in one session.
-- Break repeatedly postponed tasks into smaller pieces.
-- Leave buffer for fatigue, interviews, and unexpected events.
+- Maximum 5 tasks per day is a limit, not a target.
+- Prefer 3–4 focused tasks over touching every current priority.
+- Every task should have a concrete completion criterion.
+- Prefer work that builds on the user's existing experience when it can achieve the same learning goal.
+- For system design practice, prefer systems related to the user's existing engineering experience unless an upcoming interview requires a specific canonical problem.
 
 ## Morning Planning Context
 
