@@ -1,0 +1,78 @@
+{
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "date",
+    "completed",
+    "partial",
+    "blocked",
+    "new_gaps",
+    "carry_over",
+    "backlog_changes",
+    "current_state_changes"
+  ],
+  "properties": {
+    "date": {"type": "string", "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$"},
+    "completed": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["task", "evidence"],
+        "properties": {"task": {"type": "string"}, "evidence": {"type": "string"}}
+      }
+    },
+    "partial": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["task", "progress", "remaining"],
+        "properties": {
+          "task": {"type": "string"},
+          "progress": {"type": "string"},
+          "remaining": {"type": "string"}
+        }
+      }
+    },
+    "blocked": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["task", "reason"],
+        "properties": {"task": {"type": "string"}, "reason": {"type": "string"}}
+      }
+    },
+    "new_gaps": {"type": "array", "items": {"type": "string"}},
+    "carry_over": {"type": "array", "items": {"type": "string"}},
+    "backlog_changes": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["item", "from", "to", "reason"],
+        "properties": {
+          "item": {"type": "string"},
+          "from": {"type": "string"},
+          "to": {"type": "string"},
+          "reason": {"type": "string"}
+        }
+      }
+    },
+    "current_state_changes": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["field", "old", "new", "evidence"],
+        "properties": {
+          "field": {"type": "string"},
+          "old": {"type": "string"},
+          "new": {"type": "string"},
+          "evidence": {"type": "string"}
+        }
+      }
+    }
+  }
+}

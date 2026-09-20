@@ -70,6 +70,16 @@ Do not optimize for covering everything.
 - Maximum 5 tasks is a limit, not a target; prefer 3–4 focused tasks.
 - Every task should have a concrete completion criterion.
 
+## Evening Review
+
+- Evening Review converts user-reported evidence into structured progress.
+- Never infer completion that the user did not report.
+- Daily progress normally updates Review Log and Backlog.
+- Current State changes require meaningful evidence.
+- Skill readiness changes require repeated evidence, successful review/mock, or explicit user confirmation.
+- Review changes must be previewed before applying.
+- Lark writes happen only after explicit user confirmation.
+
 Example:
 
 P0
