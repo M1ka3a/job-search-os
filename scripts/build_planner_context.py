@@ -14,6 +14,8 @@ from datetime import date, datetime, timezone
 from pathlib import Path
 from typing import Any
 
+from prep_state import PrepStateError, format_due_topics, load_prep_state
+
 
 ROOT = Path(__file__).resolve().parents[1]
 RESOLVER = ROOT / "scripts" / "resolve_lark_resources.py"
@@ -254,6 +256,7 @@ def build_context(documents: dict[str, Document]) -> str:
     overview = heading_sections(documents["Current State"].content, 1)
     backlog_sections = heading_sections(documents["Backlog"].content, 2)
     review = review_section(documents["Review Log"].content)
+    prep_state = load_prep_state()
 
     return "\n".join(
         [
@@ -290,6 +293,10 @@ def build_context(documents: dict[str, Document]) -> str:
             f"New Gaps:\n{review['New Gaps']}",
             "",
             f"Carry Over:\n{review['Carry Over']}",
+            "",
+            "=== SPACED REVIEWS ===",
+            "",
+            format_due_topics(prep_state),
             "",
             "=== UPCOMING ===",
             "",
@@ -330,6 +337,18 @@ def load_stale_context() -> str:
         generated_at = datetime.fromtimestamp(
             CONTEXT_CACHE.stat().st_mtime, timezone.utc
         ).isoformat()
+    # The local preparation state is independent of Lark freshness, so keep
+    # review scheduling current even when the document context is stale.
+    prep_state = load_prep_state()
+    spaced_reviews = "=== SPACED REVIEWS ===\n\n" + format_due_topics(prep_state)
+    if "=== SPACED REVIEWS ===" in context:
+        context = re.sub(
+            r"(?ms)^=== SPACED REVIEWS ===\n.*?(?=^=== UPCOMING ===|\Z)",
+            spaced_reviews + "\n\n",
+            context,
+        ).rstrip()
+    else:
+        context = context.rstrip() + "\n\n" + spaced_reviews
     return f"WARNING: Using stale planner context generated at {generated_at}.\n\n{context}"
 
 
@@ -367,7 +386,7 @@ def main() -> int:
     try:
         print(prepare_context())
         return 0
-    except ContextError as exc:
+    except (ContextError, PrepStateError) as exc:
         print(f"Error: {exc}", file=sys.stderr)
         return 1
 

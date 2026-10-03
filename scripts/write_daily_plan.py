@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Replace the Daily Plan document with a generated markdown plan."""
+"""Write one dated section to the Daily Plan document."""
 
 from __future__ import annotations
 
@@ -9,7 +9,7 @@ import sys
 import time
 from datetime import date
 from pathlib import Path
-from typing import Any
+import re
 
 from build_planner_context import (
     DocumentFetchError,
@@ -96,6 +96,56 @@ def read_plan(path: Path) -> str:
     return content
 
 
+DATE_HEADING = re.compile(r"(?m)^## (?P<date>\d{4}-\d{2}-\d{2})[ \t]*$")
+ROOT_HEADING = re.compile(r"(?m)^# Daily Plan[ \t]*$")
+
+
+def dated_plan_content(existing: str, today: str, plan: str) -> str:
+    """Insert or replace today's section without rewriting other dates."""
+    section = f"## {today}\n\n{plan.strip()}\n"
+    headings = list(DATE_HEADING.finditer(existing))
+    matching = [heading for heading in headings if heading.group("date") == today]
+
+    if matching:
+        heading = matching[0]
+        next_heading = next(
+            (candidate for candidate in headings if candidate.start() > heading.start()),
+            None,
+        )
+        end = next_heading.start() if next_heading else len(existing)
+        old_section = existing[heading.start() : end]
+        trailing_newlines = old_section[len(old_section.rstrip("\r\n")) :]
+        if not trailing_newlines:
+            trailing_newlines = "\n\n" if next_heading else "\n"
+        return existing[: heading.start()] + section + trailing_newlines + existing[end:]
+
+    root = ROOT_HEADING.search(existing)
+    if not root:
+        raise WriterError("Daily Plan is missing the '# Daily Plan' heading")
+    insertion = root.end()
+
+    # Migrate the previous single-day format without guessing its date.
+    if not headings:
+        legacy_date = re.search(r"(?m)^Date:\s*(\d{4}-\d{2}-\d{2})\s*$", existing)
+        if legacy_date:
+            body = existing[root.end() :]
+            body = re.sub(r"\A\s*Date:\s*\d{4}-\d{2}-\d{2}\s*", "", body, count=1)
+            if legacy_date.group(1) == today:
+                return existing[: root.start()] + "# Daily Plan\n\n" + section
+            legacy_section = f"## {legacy_date.group(1)}\n\n{body.strip()}\n"
+            return (
+                existing[: root.start()]
+                + "# Daily Plan\n\n"
+                + section
+                + "\n"
+                + legacy_section
+            )
+        if existing[root.end() :].strip():
+            raise WriterError("Daily Plan has no dated sections and its legacy date is unavailable")
+
+    return existing[:insertion] + "\n\n" + section + existing[insertion:]
+
+
 def main() -> int:
     if len(sys.argv) != 2:
         print("Usage: python3 scripts/write_daily_plan.py PLAN_MARKDOWN", file=sys.stderr)
@@ -105,9 +155,14 @@ def main() -> int:
         plan_path = Path(sys.argv[1]).resolve()
         plan = read_plan(plan_path)
         today = date.today().isoformat()
-        content = f"# Daily Plan\n\nDate: {today}\n\n{plan}\n"
         resource = resolve_daily_plan()
         document_token = resource["obj_token"]
+
+        try:
+            existing = fetch_document(document_token, REQUIRED_TITLE).content
+        except DocumentFetchError as exc:
+            raise WriterError(f"Unable to read existing Daily Plan before update: {exc}") from exc
+        content = dated_plan_content(existing, today, plan)
 
         try:
             update_document(document_token, content)
@@ -119,9 +174,14 @@ def main() -> int:
         except DocumentFetchError as exc:
             raise WriterError(f"Daily Plan write verification failed: {exc}") from exc
         plan_lines = [line.strip() for line in plan.splitlines() if line.strip()]
-        markers = [today, plan_lines[0], plan_lines[-1]]
-        if any(marker not in read_back.content for marker in markers):
+        section_pattern = re.compile(
+            rf"(?ms)^## {re.escape(today)}[ \t]*\n(?P<section>.*?)(?=^## \d{{4}}-\d{{2}}-\d{{2}}[ \t]*$|\Z)"
+        )
+        section_match = section_pattern.search(read_back.content)
+        if not section_match or any(marker not in section_match.group("section") for marker in (plan_lines[0], plan_lines[-1])):
             raise WriterError("Daily Plan write verification failed: written content was not found")
+        if len(DATE_HEADING.findall(read_back.content)) != len(set(DATE_HEADING.findall(read_back.content))):
+            raise WriterError("Daily Plan write verification failed: duplicate dated section")
 
         print(f"Daily Plan updated and verified for {today}.")
         return 0

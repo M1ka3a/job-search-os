@@ -10,6 +10,7 @@ LOG_FILE="$PROJECT_DIR/logs/evening-review.log"
 PROPOSAL_FILE="$CACHE_DIR/evening-review.json"
 SCHEMA_FILE="$PROJECT_DIR/config/review-schema.json"
 CODEX_BIN="${EVENING_REVIEW_CODEX_BIN:-codex}"
+TODAY=$(date +%Y-%m-%d)
 
 cd "$PROJECT_DIR"
 mkdir -p "$CACHE_DIR" "$PROJECT_DIR/logs"
@@ -47,12 +48,26 @@ Do not access Lark, lark-cli, MCP, browser automation, connectors, or external
 resources. Do not modify local files or Lark.
 
 Rules:
+- Set the proposal date to exactly $TODAY.
 - Do not invent progress the user did not report.
 - Treat explicit completion claims such as “完成”, “做完”, “finished”, or “done” as Completed; do not add unreported quality evidence.
-- Distinguish completed, partial, blocked, and not done.
+- Judge each Daily Plan task against that task's original completion criterion.
+  - Completed: its criterion was fully satisfied.
+  - Partial: meaningful progress, but its criterion was not fully satisfied.
+  - Blocked: a concrete blocker prevented progress.
+  - Not done: no meaningful progress; do not put it in another status category,
+    but carry it over when it still matters.
+- Put each original Daily Plan task in at most one of completed, partial, or
+  blocked. Never split the same underlying task across Completed and Partial,
+  even if it has several subtopics.
+- Daily task completion is separate from long-term skill readiness. Keep a task
+  Completed when its criterion was met, even if later spaced reinforcement is useful.
 - Preserve uncertainty when statements are ambiguous.
-- Make new gaps concrete and actionable.
-- Carry over unfinished work that still matters.
+- New Gaps must be concrete weaknesses newly discovered in today's work. Do not
+  restate known unfinished work or existing weaknesses as New Gaps; put those in
+  Partial remaining work or Carry Over instead.
+- Carry Over should contain actionable unfinished work and future reinforcement
+  that still matters.
 - Do not mark a skill ready from one exercise.
 - Do not broadly downgrade a skill from one weak answer.
 - Keep current_state_changes empty unless evidence materially changes readiness,
@@ -127,7 +142,11 @@ if [[ ! -s "$PROPOSAL_FILE" ]]; then
   exit 1
 fi
 
-if ! python3 scripts/apply_review.py --validate-only "$PROPOSAL_FILE" >> "$LOG_FILE" 2>&1; then
+if VALIDATION_OUTPUT=$(python3 scripts/apply_review.py --validate-only "$PROPOSAL_FILE" 2>&1); then
+  print -r -- "$VALIDATION_OUTPUT" >> "$LOG_FILE"
+else
+  print -r -- "$VALIDATION_OUTPUT" >&2
+  log "structured review validation failed: ${VALIDATION_OUTPUT//$'\n'/ }"
   log "invalid structured review proposal; no Lark writes"
   print "Codex returned invalid structured review output. Nothing changed." >&2
   exit 1

@@ -111,11 +111,55 @@ def latest_review(document_token: str) -> str:
     return section.strip()
 
 
+def today_daily_plan(document_token: str) -> str:
+    """Fetch only today's dated section once the Daily Plan has history."""
+    today = date.today().isoformat()
+    outline = fetch_scoped(
+        document_token,
+        [
+            "--doc-format",
+            "xml",
+            "--scope",
+            "outline",
+            "--detail",
+            "with-ids",
+            "--max-depth",
+            "2",
+        ],
+        "Daily Plan outline",
+    )
+    match = re.search(rf'<h2 id="([^"]+)">{re.escape(today)}</h2>', outline)
+    if match:
+        section = fetch_scoped(
+            document_token,
+            [
+                "--doc-format",
+                "markdown",
+                "--scope",
+                "section",
+                "--start-block-id",
+                match.group(1),
+            ],
+            "today's Daily Plan section",
+        ).strip()
+        section = re.sub(r"^<fragment[^>]*>\s*", "", section)
+        section = re.sub(r"\s*</fragment>\s*$", "", section)
+        return section.strip()
+
+    # Compatibility for the one-time legacy format. Once dated sections exist,
+    # this fallback is not used and historical content is never fetched.
+    legacy = fetch_document(document_token, "Daily Plan").content.strip()
+    legacy_date = re.search(rf"(?m)^Date:\s*{re.escape(today)}\s*$", legacy)
+    if legacy_date:
+        return legacy
+    return "None recorded."
+
+
 def main() -> int:
     try:
         resources = resources_for_review()
         pages = resources["pages"]
-        daily_plan = fetch_document(pages["Daily Plan"]["obj_token"], "Daily Plan")
+        daily_plan = today_daily_plan(pages["Daily Plan"]["obj_token"])
         current_state = fetch_document(pages["Current State"]["obj_token"], "Current State")
         backlog = fetch_document(pages["Backlog"]["obj_token"], "Backlog")
         review = latest_review(pages["Review Log"]["obj_token"])
@@ -123,7 +167,7 @@ def main() -> int:
             "\n".join(
                 [
                     "=== TODAY'S PLAN ===",
-                    daily_plan.content.strip(),
+                    daily_plan,
                     "",
                     "=== CURRENT STATE ===",
                     current_state.content.strip(),

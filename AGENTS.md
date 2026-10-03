@@ -59,6 +59,9 @@ Do not optimize for covering everything.
 - Maximum 5 tasks per day is a limit, not a target.
 - Prefer 3–4 focused tasks over touching every current priority.
 - Every task should have a concrete completion criterion.
+- Read `prep-state.yaml` and add due spaced-review work when appropriate.
+- Prioritize review topics in this order: `gap`, `weak`, then `ready`.
+- Keep spaced-review work within the global maximum of 5 tasks and 2 P0 tasks.
 - Prefer work that builds on the user's existing experience when it can achieve the same learning goal.
 - For system design practice, prefer systems related to the user's existing engineering experience unless an upcoming interview requires a specific canonical problem.
 
